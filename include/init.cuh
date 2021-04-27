@@ -10,4 +10,4 @@
 
 void setInitState(float *st);
 void setInitHostParam( float *Prm );
-void initForSinglePendulum(Controller ct);
+void initForSinglePendulum(Controller *ct);

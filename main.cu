@@ -25,9 +25,9 @@
 int main(int argc, char **argv)
 {
     /* 制御変数（状態・システムパラメータ・各種制約・重み行列）を定義して、デバイス変数としてコピー */ 
-    Controller hostCtr, deviceCtr;
-    // hostCtr = (Controller*)malloc(sizeof(Controller) * 1);
-    // cudaMalloc(&deviceCtr, sizeof(Controller) * 1);
+    Controller *hostCtr, *deviceCtr;
+    hostCtr = (Controller*)malloc(sizeof(Controller));
+    cudaMalloc(&deviceCtr, sizeof(Controller));
     initForSinglePendulum( hostCtr );
     CHECK_CUDA(cudaMemcpy(&deviceCtr, &hostCtr, sizeof(Controller), cudaMemcpyHostToDevice), "Failed to copy h to d Control parametes");
     // cudaMemcpy(&deviceCtr, &hostCtr, sizeof(Controller), cudaMemcpyHostToDevice);

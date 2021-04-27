@@ -53,10 +53,10 @@ void getInvHessian( float *Hess, SampleBasedHessian *hostHess)
 
 }
 
-__device__ void readParam(float *prm, Controller CtrPrm){
+__device__ void readParam(float *prm, Controller *CtrPrm){
     for(int i = 0; i < NUM_OF_PARAMS; i++)
     {
-        prm[i] = CtrPrm.Param[i];
+        prm[i] = CtrPrm->Param[i];
     }
 }
 
@@ -104,7 +104,7 @@ __global__ void copyInpSeqFromSBH( InputSequences *Output, SampleBasedHessian *H
     __syncthreads();
 }
 
-__global__ void ParallelSimForPseudoGrad(SampleBasedHessian *Hess, MonteCarloMPC *sample, InputSequences *MCresult, Controller CtrPrm, float delta, int *indices)
+__global__ void ParallelSimForPseudoGrad(SampleBasedHessian *Hess, MonteCarloMPC *sample, InputSequences *MCresult, Controller *CtrPrm, float delta, int *indices)
 {
     int ix = threadIdx.x + blockIdx.x * blockDim.x;
     int iy = threadIdx.y + blockIdx.y * blockDim.y;
@@ -122,7 +122,7 @@ __global__ void ParallelSimForPseudoGrad(SampleBasedHessian *Hess, MonteCarloMPC
     readParam(d_param, CtrPrm);
 
     for(int i = 0; i < DIM_OF_STATE; i++){
-        stateInThisThreads[i] = CtrPrm.State[i];
+        stateInThisThreads[i] = CtrPrm->State[i];
     }
 
     for(int t = 0; t < HORIZON; t++){
@@ -206,19 +206,19 @@ __global__ void ParallelSimForPseudoGrad(SampleBasedHessian *Hess, MonteCarloMPC
         while(stateInThisThreads[1] < -M_PI)
             stateInThisThreads[1] += (2 * M_PI);
             
-        stageCost = stateInThisThreads[0] * stateInThisThreads[0] * CtrPrm.WeightMatrix[0] + stateInThisThreads[1] * stateInThisThreads[1] * CtrPrm.WeightMatrix[1]
-            + stateInThisThreads[2] * stateInThisThreads[2] * CtrPrm.WeightMatrix[2] + stateInThisThreads[3] * stateInThisThreads[3] * CtrPrm.WeightMatrix[3]
-            + InputSeqInThread[t].InputSeq[0] * InputSeqInThread[t].InputSeq[0] * CtrPrm.WeightMatrix[4];
+        stageCost = stateInThisThreads[0] * stateInThisThreads[0] * CtrPrm->WeightMatrix[0] + stateInThisThreads[1] * stateInThisThreads[1] * CtrPrm->WeightMatrix[1]
+            + stateInThisThreads[2] * stateInThisThreads[2] * CtrPrm->WeightMatrix[2] + stateInThisThreads[3] * stateInThisThreads[3] * CtrPrm->WeightMatrix[3]
+            + InputSeqInThread[t].InputSeq[0] * InputSeqInThread[t].InputSeq[0] * CtrPrm->WeightMatrix[4];
 
 #ifndef COLLISION
         if(stateInThisThreads[0] <= 0){
-            stageCost += 1 / (powf(stateInThisThreads[0] - CtrPrm.Constraints[2],2) * invBarrier);
-            if(stateInThisThreads[0] < CtrPrm.Constraints[2]){
+            stageCost += 1 / (powf(stateInThisThreads[0] - CtrPrm->Constraints[2],2) * invBarrier);
+            if(stateInThisThreads[0] < CtrPrm->Constraints[2]){
                 stageCost += 1000000;
             }
         }else{
-            stageCost += 1 / (powf(CtrPrm.Constraints[3] - stateInThisThreads[0],2) * invBarrier);
-            if(stateInThisThreads[0] > CtrPrm.Constraints[3]){
+            stageCost += 1 / (powf(CtrPrm->Constraints[3] - stateInThisThreads[0],2) * invBarrier);
+            if(stateInThisThreads[0] > CtrPrm->Constraints[3]){
                 stageCost += 1000000;
             }
         }

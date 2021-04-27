@@ -63,7 +63,7 @@ void setInitHostParam( float *Prm )
     init_param( Prm );
 }
 
-void initForSinglePendulum(Controller ct)
+void initForSinglePendulum(Controller *ct)
 {
     float *st, *pa, *co, *wm;
     st = (float *)malloc(sizeof(float) * DIM_OF_STATE);
@@ -76,15 +76,15 @@ void initForSinglePendulum(Controller ct)
     init_weightMatrix( wm );
 
     for(int i = 0; i < DIM_OF_STATE; i++){
-        ct.State[i] = st[i];
+        ct->State[i] = st[i];
     }
     for(int i = 0; i < NUM_OF_PARAMS; i++){
-        ct.Param[i] = pa[i]; 
+        ct->Param[i] = pa[i]; 
     }
     for(int i = 0; i < NUM_OF_CONSTRAINTS; i++){
-        ct.Constraints[i] = co[i];
+        ct->Constraints[i] = co[i];
     }
     for(int i = 0; i < DIM_OF_WEIGHT_MATRIX; i++){
-        ct.WeightMatrix[i] = wm[i];
+        ct->WeightMatrix[i] = wm[i];
     }
 }

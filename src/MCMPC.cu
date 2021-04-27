@@ -34,24 +34,24 @@ void MCMPC_by_weighted_mean( InputSequences *Output, MonteCarloMPC *PrCtr, int u
     }
 }
 
-void StateUpdate( Controller CtrPrm, float *hSt)
+void StateUpdate( Controller *CtrPrm, float *hSt)
 {
     for(int i = 0; i < DIM_OF_STATE; i++)
     {
-        CtrPrm.State[i] = hSt[i];
+        CtrPrm->State[i] = hSt[i];
     }
 }
 
-__device__ void MemCpyInThread(float *prm, float *cnstrnt, float *mtrx, Controller Ctr)
+__device__ void MemCpyInThread(float *prm, float *cnstrnt, float *mtrx, Controller *Ctr)
 {
     for(int i = 0; i < NUM_OF_PARAMS; i++){
-        prm[i] = Ctr.Param[i];
+        prm[i] = Ctr->Param[i];
     }
     for(int i = 0; i < NUM_OF_CONSTRAINTS; i++){
-        cnstrnt[i] = Ctr.Constraints[i];
+        cnstrnt[i] = Ctr->Constraints[i];
     }
     for(int i = 0; i < DIM_OF_WEIGHT_MATRIX; i++){
-        mtrx[i] = Ctr.WeightMatrix[i];
+        mtrx[i] = Ctr->WeightMatrix[i];
     }
 }
 
@@ -102,7 +102,7 @@ __global__ void MCMPC_callback_elite_sample_by_IT(MonteCarloMPC *OutPtElt, Monte
     }
 }
 
-__global__ void MCMPC_Cart_and_Single_Pole(MonteCarloMPC *PrCtr, curandState *randomSeed, Controller Ctr, InputSequences *mean, float var, float *cost)
+__global__ void MCMPC_Cart_and_Single_Pole(MonteCarloMPC *PrCtr, curandState *randomSeed, Controller *Ctr, InputSequences *mean, float var, float *cost)
 {
     unsigned int id = threadIdx.x + blockDim.x * blockIdx.x;
     unsigned int seq;
@@ -120,7 +120,7 @@ __global__ void MCMPC_Cart_and_Single_Pole(MonteCarloMPC *PrCtr, curandState *ra
     MemCpyInThread(d_param, d_constraints, d_matrix, Ctr);
 
     for(int i = 0; i < DIM_OF_STATE; i++){
-        stateInThisThreads[i] = Ctr.State[i];
+        stateInThisThreads[i] = Ctr->State[i];
     }
 
     for(int t = 0; t < HORIZON; t++)
@@ -142,11 +142,11 @@ __global__ void MCMPC_Cart_and_Single_Pole(MonteCarloMPC *PrCtr, curandState *ra
                 InputSeqInThread[t].InputSeq[uIndex] = gen_u(seq, randomSeed, mean[t].InputSeq[uIndex], var);
                 seq += NUM_OF_SAMPLES;
             }
-            if(InputSeqInThread[t].InputSeq[uIndex] < Ctr.Constraints[0]){
-                InputSeqInThread[t].InputSeq[uIndex] = Ctr.Constraints[0];
+            if(InputSeqInThread[t].InputSeq[uIndex] < Ctr->Constraints[0]){
+                InputSeqInThread[t].InputSeq[uIndex] = Ctr->Constraints[0];
             }
-            if(InputSeqInThread[t].InputSeq[uIndex] > Ctr.Constraints[1]){
-                InputSeqInThread[t].InputSeq[uIndex] = Ctr.Constraints[1];
+            if(InputSeqInThread[t].InputSeq[uIndex] > Ctr->Constraints[1]){
+                InputSeqInThread[t].InputSeq[uIndex] = Ctr->Constraints[1];
             }
         }
 

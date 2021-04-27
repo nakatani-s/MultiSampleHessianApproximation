@@ -6,4 +6,4 @@
 #include "dynamics.cuh"
 
 float calc_Cost_Simple_NonLinear_Example( float *inputSequences, float *stateValues, float *param, float *weightMatrix);
-float calc_Cost_Cart_and_SinglePole( Controller CtrPrm, InputSequences *Input );
+float calc_Cost_Cart_and_SinglePole( Controller *CtrPrm, InputSequences *Input );

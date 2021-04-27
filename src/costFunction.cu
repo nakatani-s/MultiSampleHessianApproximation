@@ -26,7 +26,7 @@ float calc_Cost_Simple_NonLinear_Example( float *inputSequences, float *stateVal
     return costValue;
 }
 
-float calc_Cost_Cart_and_SinglePole( Controller CtrPrm, InputSequences *Input )
+float calc_Cost_Cart_and_SinglePole( Controller *CtrPrm, InputSequences *Input )
 {
     float costValue = 0.0f;
     float stageCost = 0.0f;
@@ -35,18 +35,18 @@ float calc_Cost_Cart_and_SinglePole( Controller CtrPrm, InputSequences *Input )
     float param[NUM_OF_PARAMS] = { };
 
     for(int no = 0; no < DIM_OF_STATE; no++){
-        stateHere[no] = CtrPrm.State[no];
+        stateHere[no] = CtrPrm->State[no];
     }
     for(int k = 0; k < NUM_OF_PARAMS; k++)
     {
-        param[k] = CtrPrm.Param[k];
+        param[k] = CtrPrm->Param[k];
     }
     for(int t = 0; t < HORIZON; t++){
-        if(Input[t].InputSeq[0] < CtrPrm.Constraints[0]){
-            Input[t].InputSeq[0] = CtrPrm.Constraints[0];
+        if(Input[t].InputSeq[0] < CtrPrm->Constraints[0]){
+            Input[t].InputSeq[0] = CtrPrm->Constraints[0];
         }
-        if(Input[t].InputSeq[0] > CtrPrm.Constraints[1]){
-            Input[t].InputSeq[0] = CtrPrm.Constraints[1];
+        if(Input[t].InputSeq[0] > CtrPrm->Constraints[1]){
+            Input[t].InputSeq[0] = CtrPrm->Constraints[1];
         }
         // まずは、オイラー積分（100Hz 40stepで倒立できるか）　→　0.4秒先まで予測
         // 問題が起きたら、0次ホールダーでやってみる、それでもダメならMPCの再設計
@@ -77,19 +77,19 @@ float calc_Cost_Cart_and_SinglePole( Controller CtrPrm, InputSequences *Input )
         // upper side: MATLAB　で使用している評価関数を参考    
         /* qx = stateInThisThreads[0] * stateInThisThreads[0] * d_matrix[0] + stateInThisThreads[1] * stateInThisThreads[1] * d_matrix[1]
             + u[t] * u[t] * d_matrix[3]; */
-        stageCost = stateHere[0] * stateHere[0] * CtrPrm.WeightMatrix[0] + stateHere[1] * stateHere[1] * CtrPrm.WeightMatrix[1]
-            + stateHere[2] * stateHere[2] * CtrPrm.WeightMatrix[2] + stateHere[3] * stateHere[3] * CtrPrm.WeightMatrix[3]
-            + Input[t].InputSeq[0] * Input[t].InputSeq[0] * CtrPrm.WeightMatrix[4];
+        stageCost = stateHere[0] * stateHere[0] * CtrPrm->WeightMatrix[0] + stateHere[1] * stateHere[1] * CtrPrm->WeightMatrix[1]
+            + stateHere[2] * stateHere[2] * CtrPrm->WeightMatrix[2] + stateHere[3] * stateHere[3] * CtrPrm->WeightMatrix[3]
+            + Input[t].InputSeq[0] * Input[t].InputSeq[0] * CtrPrm->WeightMatrix[4];
         
         // constraints described by Barrier Function Method
         if(stateHere[0] <= 0){
-            stageCost += 1 / (powf(stateHere[0] - CtrPrm.Constraints[2],2) * invBarrier);
-            if(stateHere[0] < CtrPrm.Constraints[2]){
+            stageCost += 1 / (powf(stateHere[0] - CtrPrm->Constraints[2],2) * invBarrier);
+            if(stateHere[0] < CtrPrm->Constraints[2]){
                 stageCost += 1000000;
             }
         }else{
-            stageCost += 1 / (powf(CtrPrm.Constraints[3] - stateHere[0],2) * invBarrier);
-            if(stateHere[0] > CtrPrm.Constraints[3]){
+            stageCost += 1 / (powf(CtrPrm->Constraints[3] - stateHere[0],2) * invBarrier);
+            if(stateHere[0] > CtrPrm->Constraints[3]){
                 stageCost += 1000000;
             }
         }
