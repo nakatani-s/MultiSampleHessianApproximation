@@ -51,6 +51,14 @@ void getInvHessian( float *Hess, SampleBasedHessian *hostHess)
 
     CHECK_CUDA( cudaMemcpy(Hess, deviceArrayHess, szMat, cudaMemcpyDeviceToHost), "Failed to copy inverse Hess to Host");
 
+    CHECK_CUDA(cudaFree(deviceArrayHess),"Failed to free deviceArrayHess");
+    CHECK_CUDA(cudaFree(device_arrayGrad),"Failed to free device_arrayGrad");
+    CHECK_CUDA(cudaFree(device_arrayVect), "Failed to free device_arrayVect");
+    CHECK_CUDA(cudaFree(deviceInvArrayGrad), "Failed to free deviceInvArrayGrad");
+    CHECK_CUDA(cudaFree(deviceSubject), "Failed to free deviceSubject");
+    free(arrayGrad);
+    free(invArrayGrad);
+
 }
 
 __device__ void readParam(float *prm, Controller *CtrPrm){
