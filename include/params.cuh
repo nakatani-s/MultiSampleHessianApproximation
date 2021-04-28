@@ -28,6 +28,7 @@ const int NUM_OF_RECALC = 5;
 const float interval = 0.01;
 const float invBarrier = 10000;
 const float zeta = 0.01f;
+const float iita = 0.05f;
 
 
 const float initVar = 1.5f;

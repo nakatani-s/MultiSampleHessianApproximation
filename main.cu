@@ -135,6 +135,9 @@ int main(int argc, char **argv)
 
             // Sampled Hessianの計算
             CHECK_CUDA(cudaMemcpy( deviceInputMCMPC, hostInputMCMPC, sizeof(InputSequences) * HORIZON, cudaMemcpyHostToDevice),"Failed befor call function -2");
+            MCMPC_Cart_and_Single_Pole<<<numBlocks, THREAD_PER_BLOCKS>>>(device_MCMPC, devStates, deviceCtr, deviceInputMCMPC, iita, thrust::raw_pointer_cast( sort_key_device_vec.data() ));
+            thrust::sequence(indices_device_vec.begin(), indices_device_vec.end());
+            thrust::sort_by_key(sort_key_device_vec.begin(), sort_key_device_vec.end(), indices_device_vec.begin());
             ParallelSimForPseudoGrad<<<hess_grid, hess_block>>>(deviceDataForHessian, device_MCMPC, deviceInputMCMPC, deviceCtr, zeta, thrust::raw_pointer_cast( indices_device_vec.data() ));
             CHECK_CUDA(cudaDeviceSynchronize(),"cudaSynchronize main #1\n");
             getPseduoGradient<<<HORIZON + 1, HORIZON>>>( deviceDataForHessian, zeta);
