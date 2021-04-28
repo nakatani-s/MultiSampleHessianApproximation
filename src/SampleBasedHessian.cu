@@ -21,7 +21,7 @@ void getInvHessian( float *Hess, SampleBasedHessian *hostHess)
     float *invArrayGrad, *deviceInvArrayGrad;
     float /* *arrayVect, */ *device_arrayVect;
 
-    size_t szMat = HORIZON * HORIZON * sizeof(float);
+    size_t szMat2 = HORIZON * HORIZON * sizeof(float);
 
     int nx = HORIZON;
     int ny = HORIZON;
@@ -29,27 +29,27 @@ void getInvHessian( float *Hess, SampleBasedHessian *hostHess)
     dim3 grid(( nx  + block.x - 1)/ block.x, ( ny + block.y -1) / block.y);
 
     arrayGrad = (float *)malloc(HORIZON * HORIZON * sizeof(float));
-    CHECK_CUDA( cudaMalloc( &deviceArrayHess, szMat), "Failed to allocate array Hessian on device matrix");
-    CHECK_CUDA( cudaMalloc( &device_arrayGrad,  szMat), "Failed to allocate array Grad on device matrix" );
-    CHECK_CUDA( cudaMalloc( &device_arrayVect, szMat), "Failed to allocate array Vect on device matrix");
-    CHECK_CUDA( cudaMalloc( &deviceInvArrayGrad, szMat), "Failed to allocate array invGrad on device matrix");
+    CHECK_CUDA(cudaMalloc(&device_arrayGrad,  szMat2), "Failed to allocate array Grad on device matrix" );
+    CHECK_CUDA( cudaMalloc( &deviceArrayHess, HORIZON * HORIZON * sizeof(float)), "Failed to allocate array Hessian on device matrix");
+    CHECK_CUDA( cudaMalloc( &device_arrayVect, szMat2), "Failed to allocate array Vect on device matrix");
+    CHECK_CUDA( cudaMalloc( &deviceInvArrayGrad, szMat2), "Failed to allocate array invGrad on device matrix");
     CHECK_CUDA( cudaMalloc( &deviceSubject, (HORIZON + 1) * sizeof(SampleBasedHessian)), "Failed to allocate SampledBasedHessianVector in SBH.cu");
     CHECK_CUDA( cudaMemcpy(deviceSubject, hostHess, (HORIZON + 1) * sizeof(SampleBasedHessian), cudaMemcpyHostToDevice), "Failed to copy SampledBasedHessianVector in SBH.cu");
-    invArrayGrad = (float *)malloc( szMat );
+    invArrayGrad = (float *)malloc( szMat2 );
     // arrayVect = (float *)malloc( szMat );
 
     makeGrad_SamplePointMatrix<<<HORIZON, HORIZON>>>( device_arrayGrad, device_arrayVect, deviceSubject );
     CHECK_CUDA(cudaDeviceSynchronize(), "Failed to synchronize after kernel call!");
-    CHECK_CUDA( cudaMemcpy( arrayGrad, device_arrayGrad, szMat, cudaMemcpyDeviceToHost), "Failed to copy matrix G in SBH.cu");
+    CHECK_CUDA( cudaMemcpy( arrayGrad, device_arrayGrad, szMat2, cudaMemcpyDeviceToHost), "Failed to copy matrix G in SBH.cu");
     // CHECK_CUDA( cudaMemcpy( arrayVect, device_arrayVect, szMat, cudaMemcpyDeviceToHost), "Failed to copy matrix V in SBH.cu");
 
     GetInvMatrix(invArrayGrad, arrayGrad, HORIZON);
-    CHECK_CUDA( cudaMemcpy(deviceInvArrayGrad, invArrayGrad, szMat, cudaMemcpyHostToDevice), "Failed to copy inverse matrix G to device");
+    CHECK_CUDA( cudaMemcpy(deviceInvArrayGrad, invArrayGrad, szMat2, cudaMemcpyHostToDevice), "Failed to copy inverse matrix G to device");
 
     GetResultMatrixProduct<<<grid, block>>>( deviceArrayHess, device_arrayVect, deviceInvArrayGrad, HORIZON );
     CHECK_CUDA(cudaDeviceSynchronize(), "Failed to synchronize after kernel call!");
 
-    CHECK_CUDA( cudaMemcpy(Hess, deviceArrayHess, szMat, cudaMemcpyDeviceToHost), "Failed to copy inverse Hess to Host");
+    CHECK_CUDA( cudaMemcpy(Hess, deviceArrayHess, szMat2, cudaMemcpyDeviceToHost), "Failed to copy inverse Hess to Host");
 
     CHECK_CUDA(cudaFree(deviceArrayHess),"Failed to free deviceArrayHess");
     CHECK_CUDA(cudaFree(device_arrayGrad),"Failed to free device_arrayGrad");
@@ -235,7 +235,11 @@ __global__ void ParallelSimForPseudoGrad(SampleBasedHessian *Hess, MonteCarloMPC
 
         stageCost = 0.0f;
     }
-    Hess[blockIdx.x].currentU[0][blockIdx.y] =  
-    Hess[blockIdx.x].cost[blockIdx.y][threadIdx.x] = totalCost;
-    __syncthreads();
+    Hess[blockIdx.x].currentU[threadIdx.x][iy] = InputSeqInThread[iy].InputSeq[0];
+    Hess[blockIdx.x].modified_U[threadIdx.x][iy] = 0.0f;
+    Hess[blockIdx.x].delta_u[threadIdx.x][iy] = 0.0f;
+    Hess[blockIdx.x].cost[iy][threadIdx.x] = totalCost;
+    free(InputSeqInThread);
+    //printf("id == %d blockIdx.x == %d   threadIdx.x == %d blockIdx.y == %d u == %f\n", id, blockIdx.x,  threadIdx.x, iy, InputSeqInThread[iy].InputSeq[0]);
+    //__syncthreads();
 }

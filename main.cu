@@ -29,7 +29,7 @@ int main(int argc, char **argv)
     hostCtr = (Controller*)malloc(sizeof(Controller));
     cudaMalloc(&deviceCtr, sizeof(Controller));
     initForSinglePendulum( hostCtr );
-    CHECK_CUDA(cudaMemcpy(&deviceCtr, &hostCtr, sizeof(Controller), cudaMemcpyHostToDevice), "Failed to copy h to d Control parametes");
+    CHECK_CUDA(cudaMemcpy(deviceCtr, hostCtr, sizeof(Controller), cudaMemcpyHostToDevice), "Failed to copy h to d Control parametes");
     // cudaMemcpy(&deviceCtr, &hostCtr, sizeof(Controller), cudaMemcpyHostToDevice);
     // cudaMemcpyToSymbol(deviceCtr, &hostCtr, sizeof(Controller));
 
@@ -97,7 +97,7 @@ int main(int argc, char **argv)
     int ny = HORIZON;
     dim3 hess_block(3,1);
     dim3 hess_grid(( nx  + hess_block.x - 1)/ hess_block.x, ( ny + hess_block.y -1) / hess_block.y);
-
+    printf("inx == %d  iny == %d\n",(int)(( nx  + hess_block.x - 1)/ hess_block.x),  (int)(( ny + hess_block.y -1) / hess_block.y));
     int n = 2;
     float Mat[4] = {-11.996, -32.664, -5.332, -11.332};
     float *invMat;
@@ -111,7 +111,9 @@ int main(int argc, char **argv)
     float variance;
     float costMCMPC;
     float costSBH;
-    float now_input;
+    float now_input, inferior_input;
+    int counter;
+
     for(int t = 0; t < TIME; t++){
         shift_Input_vec( hostInput, 0 );
         StateUpdate( hostCtr, hostState); //この関数の宣言と実体の記述から　2021.4.27 10:55
@@ -121,7 +123,7 @@ int main(int argc, char **argv)
         {
             // Parallel Simulation 〜 MCMPC解の推定まで
             variance = powf(0.95, re) * initVar;
-            CHECK_CUDA(cudaMemcpy(&deviceCtr, &hostCtr, sizeof(Controller), cudaMemcpyHostToDevice), "failed to copy control information at control loop");
+            CHECK_CUDA(cudaMemcpy(deviceCtr, hostCtr, sizeof(Controller), cudaMemcpyHostToDevice), "failed to copy control information at control loop");
             MCMPC_Cart_and_Single_Pole<<<numBlocks, THREAD_PER_BLOCKS>>>(device_MCMPC, devStates, deviceCtr, deviceInput, variance, thrust::raw_pointer_cast( sort_key_device_vec.data() ));
             cudaDeviceSynchronize();
             thrust::sequence(indices_device_vec.begin(), indices_device_vec.end());
@@ -132,10 +134,13 @@ int main(int argc, char **argv)
             MCMPC_by_weighted_mean(hostInputMCMPC, host_Elite, 0);
 
             // Sampled Hessianの計算
-            cudaMemcpy( deviceInputMCMPC, hostInputMCMPC, sizeof(float) * HORIZON, cudaMemcpyHostToDevice);
+            CHECK_CUDA(cudaMemcpy( deviceInputMCMPC, hostInputMCMPC, sizeof(InputSequences) * HORIZON, cudaMemcpyHostToDevice),"Failed befor call function -2");
             ParallelSimForPseudoGrad<<<hess_grid, hess_block>>>(deviceDataForHessian, device_MCMPC, deviceInputMCMPC, deviceCtr, zeta, thrust::raw_pointer_cast( indices_device_vec.data() ));
+            CHECK_CUDA(cudaDeviceSynchronize(),"cudaSynchronize main #1\n");
             getPseduoGradient<<<HORIZON + 1, HORIZON>>>( deviceDataForHessian, zeta);
-            cudaMemcpy( hostDataForHessian, deviceDataForHessian, sizeof(SampleBasedHessian) * (HORIZON + 1), cudaMemcpyDeviceToHost );
+            cudaDeviceSynchronize();
+            CHECK_CUDA(cudaMemcpy( hostDataForHessian, deviceDataForHessian, sizeof(SampleBasedHessian) * (HORIZON + 1), cudaMemcpyDeviceToHost ), "Failed befor call function");
+            printf("hoge %d\n", re);
             getInvHessian( invHessian, hostDataForHessian);
             CHECK_CUDA( cudaMemcpy(deviceDataForHessian, hostDataForHessian, sizeof(SampleBasedHessian) * (HORIZON + 1), cudaMemcpyHostToDevice), "Failed to copy Hessian information to device vector" );
             CHECK_CUDA( cudaMemcpy(deviceInvHessian, invHessian, HORIZON * HORIZON * sizeof(float), cudaMemcpyHostToDevice), "Failed to copy inverse Hessian to device vector");
@@ -160,10 +165,14 @@ int main(int argc, char **argv)
         if(costMCMPC < costSBH || isnan(costSBH))
         {
             now_input = hostInputMCMPC[0].InputSeq[0];
+            inferior_input = hostInputSBH[0].InputSeq[0];
+            counter = 0;
             CHECK_CUDA( cudaMemcpy( deviceInput, hostInputMCMPC, HORIZON * sizeof(float), cudaMemcpyHostToDevice), "Failed to copy MCMPC Input vector" );
             printf("MCMPC input superior than SBH\n");
         }else{
             now_input = hostInputSBH[0].InputSeq[0];
+            inferior_input = hostInputMCMPC[0].InputSeq[0];
+            counter = 1;
             CHECK_CUDA( cudaMemcpy( deviceInput, hostInputSBH, HORIZON * sizeof(float), cudaMemcpyHostToDevice), "Failed to copy SBH Input vector");
             printf("SBH input superior than MCMPC\n");
         }
@@ -188,7 +197,8 @@ int main(int argc, char **argv)
             hostState[0] = hostConstraint[3];
         }
 #endif
-        fprintf(fp, "%f %f %f %f %f %f %f %f\n", interval * t, now_input, hostState[0], hostState[1], hostState[2], hostState[3], costMCMPC, costSBH);
+        fprintf(fp, "%f %f %f %f %f %f %f %f %f %d\n", interval * t, now_input, inferior_input, hostState[0], hostState[1], hostState[2], hostState[3], costMCMPC, costSBH, counter);
+        printf("%f %f %f %f\n", interval * t, now_input, costMCMPC, costSBH);
     }
     fclose(fp);
     cudaDeviceReset( );

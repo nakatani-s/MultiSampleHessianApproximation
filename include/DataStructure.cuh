@@ -17,12 +17,12 @@ typedef struct{
 }Controller;
 
 typedef struct{
-    float currentU[DIM_OF_U][HORIZON];
+    float currentU[3][HORIZON];
     float pseudoGradient[HORIZON];
     float cost[HORIZON][3];
 
-    float modified_U[DIM_OF_U][HORIZON];
-    float delta_u[DIM_OF_U][HORIZON];
+    float modified_U[3][HORIZON];
+    float delta_u[3][HORIZON];
 
 }SampleBasedHessian;
 

@@ -233,5 +233,6 @@ __global__ void MCMPC_Cart_and_Single_Pole(MonteCarloMPC *PrCtr, curandState *ra
             PrCtr[id].InputSeq[k][i] = InputSeqInThread[i].InputSeq[k];
         }
     }
+    free(InputSeqInThread);
     __syncthreads();
 }
